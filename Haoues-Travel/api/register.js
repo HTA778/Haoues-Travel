@@ -20,7 +20,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const GOOGLE_SHEETS_URL = process.env.GOOGLE_SHEETS_URL || "https://script.google.com/macros/s/AKfycbzk7ljbMqd6lCZbWLyiJT6li86bn2LxKsaEoHcdxdm3XEZ9ZUcdCvRVEhQlbiOarAy1/exec";
+    const GOOGLE_SHEETS_URL = process.env.GOOGLE_SHEETS_URL || "https://script.google.com/macros/s/AKfycbzNWBMwPbL5yv_LW5qvJIWnvZ11K6lN55ySFD94g554zl3sXg5N53STWJtuTCl8Modg/exec";
 
     if (!GOOGLE_SHEETS_URL) {
       throw new Error('Server configuration error: Webhook URL is missing.');
