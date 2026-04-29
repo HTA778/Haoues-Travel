@@ -207,6 +207,28 @@ function processBooking(data) {
 
   if (foundIndex === -1) throw new Error("الباقة غير موجودة أو انتهى عرضها.");
 
+  // Compute per-person price server-side from the offer's room pricing
+  var perPersonPrice = Number(data.totalPrice) || 0;
+  var offerRow = offers[foundIndex - 1];
+  var basePrice = Number(offerRow[OC.PRICE]) || 0;
+  var roomsRaw = offerRow[OC.ROOMS];
+  var roomType = String(data.roomType || '').trim();
+  if (roomsRaw) {
+    try {
+      var roomsArr = typeof roomsRaw === 'string' ? JSON.parse(roomsRaw) : roomsRaw;
+      if (Array.isArray(roomsArr)) {
+        for (var ri = 0; ri < roomsArr.length; ri++) {
+          var rn = String(roomsArr[ri].name || '').trim();
+          if (rn === roomType || (roomType && rn && roomType.indexOf(rn) !== -1)) {
+            var rp = Number(roomsArr[ri].price);
+            if (rp > 0) { perPersonPrice = rp; break; }
+          }
+        }
+      }
+    } catch(ignored) {}
+  }
+  if (perPersonPrice <= 0 && basePrice > 0) perPersonPrice = basePrice;
+
   // Save booking
   const ts = new Date();
   sheet.appendRow([
@@ -218,7 +240,7 @@ function processBooking(data) {
     data.pax,
     data.roomType,
     "PENDING",
-    data.totalPrice || 0
+    perPersonPrice
   ]);
 
   // Send notification
