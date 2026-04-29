@@ -1557,7 +1557,6 @@ window.exportData = (format) => {
     const p = getBookingPrice(b);
     const ts = b.timestamp ? new Date(b.timestamp) : null;
     const dateStr = ts && !isNaN(ts) ? ts.toLocaleDateString('ar-DZ', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '';
-    const timeStr = ts && !isNaN(ts) ? ts.toLocaleTimeString('ar-DZ', { hour: '2-digit', minute: '2-digit' }) : '';
     return {
       "الاسم": `${b.firstName || ''} ${b.lastName || ''}`,
       "الهاتف": b.phone || '',
@@ -1567,8 +1566,7 @@ window.exportData = (format) => {
       "السعر / شخص (دج)": p ? p.perPerson : '',
       "المجموع (دج)": p ? p.total : '',
       "الحالة": getArabicStatus(b.status),
-      "التاريخ": dateStr,
-      "الساعة": timeStr
+      "التاريخ": dateStr
     };
   });
   if (format === 'xlsx') exportExcel(data);
@@ -1653,7 +1651,6 @@ function exportPDF(data) {
       <td style="text-align:center; font-weight:700;">${escapeHtml(fmtNum(row['المجموع (دج)']))}</td>
       <td style="text-align:center;">${escapeHtml(row['الحالة'])}</td>
       <td style="text-align:center; font-size:12px;">${escapeHtml(row['التاريخ'] || '-')}</td>
-      <td style="text-align:center; font-size:12px;">${escapeHtml(row['الساعة'] || '-')}</td>
     </tr>`).join('');
   const html = `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
@@ -1685,7 +1682,7 @@ function exportPDF(data) {
   <table>
     <thead>
       <tr>
-        <th>الاسم الكامل</th><th>الهاتف</th><th>الباقة</th><th>الأشخاص</th><th>الغرفة</th><th>السعر / شخص (دج)</th><th>المجموع (دج)</th><th>الحالة</th><th>التاريخ</th><th>الساعة</th>
+        <th>الاسم الكامل</th><th>الهاتف</th><th>الباقة</th><th>الأشخاص</th><th>الغرفة</th><th>السعر / شخص (دج)</th><th>المجموع (دج)</th><th>الحالة</th><th>التاريخ</th>
       </tr>
     </thead>
     <tbody>${rowsHtml}</tbody>
@@ -1713,7 +1710,6 @@ function exportWord(data) {
       <td>${escapeHtml(fmtNum(row['المجموع (دج)']))}</td>
       <td>${escapeHtml(row['الحالة'])}</td>
       <td>${escapeHtml(row['التاريخ'] || '-')}</td>
-      <td>${escapeHtml(row['الساعة'] || '-')}</td>
     </tr>`).join('');
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="UTF-8">
@@ -1733,7 +1729,7 @@ function exportWord(data) {
   <p class="info">الفلتر: ${escapeHtml(filterLabel)} | إجمالي النتائج: ${data.length} حجز | تاريخ التصدير: ${escapeHtml(new Date().toLocaleDateString('ar-DZ'))}</p>
   <table>
     <thead>
-      <tr><th>الاسم</th><th>الهاتف</th><th>الباقة</th><th>الأشخاص</th><th>الغرفة</th><th>السعر / شخص (دج)</th><th>المجموع (دج)</th><th>الحالة</th><th>التاريخ</th><th>الساعة</th></tr>
+      <tr><th>الاسم</th><th>الهاتف</th><th>الباقة</th><th>الأشخاص</th><th>الغرفة</th><th>السعر / شخص (دج)</th><th>المجموع (دج)</th><th>الحالة</th><th>التاريخ</th></tr>
     </thead>
     <tbody>${rowsHtml}</tbody>
   </table>
