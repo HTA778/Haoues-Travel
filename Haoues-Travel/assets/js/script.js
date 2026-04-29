@@ -858,6 +858,9 @@ window.updateBookingTotalPrice = () => {
   const total = parseFloat(basePrice) || 0;
   // Display as Price per person as requested (multiplication removed)
   priceDisplay.textContent = `${total.toLocaleString()} دج / شخص`;
+  // Sync the hidden form input so totalPrice is submitted with the booking
+  const hiddenInput = document.getElementById('b-total-price-submit');
+  if (hiddenInput) hiddenInput.value = total;
 };
 async function handleBookingSubmit(e) {
   e.preventDefault();
@@ -1045,6 +1048,7 @@ function getBookingPrice(b) {
   if (!b) return null;
   const pkgName = String(b.package || '').trim();
   if (!pkgName) return null;
+  const pax = Math.max(1, parseInt(b.pax, 10) || 1);
   // Search admin packages first (the full list, includes unpublished
   // packages) so admin contexts can resolve prices for bookings made
   // against unpublished offers; fall back to public packages.
@@ -1052,23 +1056,32 @@ function getBookingPrice(b) {
   const pkgRaw =
     (state.adminPackages || []).find(matchByName) ||
     (state.packages || []).find(matchByName);
-  if (!pkgRaw) return null;
-  const pkg = normalizeItem(pkgRaw);
-  const roomType = String(b.roomType || '').trim();
-  let perPerson = Number(pkg.price) || 0;
-  const parsed = parseRoomsField(pkg.rooms);
-  const roomMatch = parsed.find(r =>
-    r.name === roomType || (roomType && r.name && roomType.includes(r.name))
-  );
-  if (roomMatch && roomMatch.price) {
-    perPerson = Number(roomMatch.price) || perPerson;
-  } else if (roomType.includes('ثنائية') && pkg.priceDouble) perPerson = Number(pkg.priceDouble);
-  else if (roomType.includes('ثلاثية') && pkg.priceTriple) perPerson = Number(pkg.priceTriple);
-  else if (roomType.includes('رباعية') && pkg.priceQuad) perPerson = Number(pkg.priceQuad);
-  else if (roomType.includes('خماسية') && pkg.priceQuint) perPerson = Number(pkg.priceQuint);
-  if (!Number.isFinite(perPerson) || perPerson <= 0) return null;
-  const pax = Math.max(1, parseInt(b.pax, 10) || 1);
-  return { perPerson, total: perPerson * pax, pax, currency: 'دج' };
+  if (pkgRaw) {
+    const pkg = normalizeItem(pkgRaw);
+    const roomType = String(b.roomType || '').trim();
+    let perPerson = Number(pkg.price) || 0;
+    const parsed = parseRoomsField(pkg.rooms);
+    const roomMatch = parsed.find(r =>
+      r.name === roomType || (roomType && r.name && roomType.includes(r.name))
+    );
+    if (roomMatch && roomMatch.price) {
+      perPerson = Number(roomMatch.price) || perPerson;
+    } else if (roomType.includes('ثنائية') && pkg.priceDouble) perPerson = Number(pkg.priceDouble);
+    else if (roomType.includes('ثلاثية') && pkg.priceTriple) perPerson = Number(pkg.priceTriple);
+    else if (roomType.includes('رباعية') && pkg.priceQuad) perPerson = Number(pkg.priceQuad);
+    else if (roomType.includes('خماسية') && pkg.priceQuint) perPerson = Number(pkg.priceQuint);
+    if (Number.isFinite(perPerson) && perPerson > 0) {
+      return { perPerson, total: perPerson * pax, pax, currency: 'دج' };
+    }
+  }
+  // Fallback: use the booking's own stored price (per-person price saved at
+  // booking time). This covers cases where the package was deleted/renamed
+  // or lacks valid pricing data.
+  const stored = Number(b.price) || 0;
+  if (Number.isFinite(stored) && stored > 0) {
+    return { perPerson: stored, total: stored * pax, pax, currency: 'دج' };
+  }
+  return null;
 }
 /* Format a booking's price for display (table cell / export rows).
    Shows per-person price prominently and the multiplied total below
