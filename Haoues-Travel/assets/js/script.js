@@ -233,6 +233,13 @@ function normalizeItem(item) {
    1. UI INITIALIZATION
    ═══════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
+  // Fire-and-forget page visit tracking — no await, no error UI
+  fetch('/api/proxy', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'trackVisit' })
+  }).catch(function() {});
+
   initUI();
   fetchInitialData();
   setupRevealOnScroll();
@@ -901,6 +908,12 @@ async function handleBookingSubmit(e) {
   btn.textContent = "جاري الحجز...";
   try {
     await gasFetch('POST', { action: 'book', data: data });
+    // Fire-and-forget registration tracking
+    fetch('/api/proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'trackRegistration' })
+    }).catch(function() {});
     showToast("تم إرسال طلب الحجز بنجاح! سنتواصل معكم قريباً.", 'success', 'assets/img/ui/check.png');
     closeModal('modal-booking');
     e.target.reset();
@@ -1804,12 +1817,22 @@ function compressAndConvert(file, maxWidth = 1200, quality = 0.8) {
   });
 }
 /* ─── Tab Switching ─── */
+let analyticsDataCache = null;
 window.switchTab = (tab) => {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
   document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
   document.getElementById(`tab-${tab}`).style.display = 'block';
+  if (tab === 'analytics') loadAnalytics();
 };
+
+async function loadAnalytics() {
+  if (analyticsDataCache) {
+    if (typeof initAnalytics === 'function') initAnalytics(analyticsDataCache);
+    return;
+  }
+  if (typeof initAnalytics === 'function') initAnalytics(null);
+}
 /* ═══════════════════════════════════════════════════════
    7. TOAST NOTIFICATION SYSTEM
    ═══════════════════════════════════════════════════════ */

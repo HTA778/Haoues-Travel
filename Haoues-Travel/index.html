@@ -494,6 +494,9 @@
           <div class="tab" role="tab" tabindex="0" onclick="switchTab('packages')"
             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchTab('packages');}">العروض
           </div>
+          <div class="tab" role="tab" tabindex="0" onclick="switchTab('analytics')"
+            onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault(); switchTab('analytics');}">📊 الإحصائيات
+          </div>
         </div>
         <button class="btn btn-outline admin-refresh-btn" onclick="fetchAdminData(false)"
           aria-label="تحديث البيانات" title="تحديث البيانات">
@@ -584,6 +587,23 @@
         </div>
         <div id="list-mgr-packages"></div>
       </div>
+
+      <!-- Analytics Tab -->
+      <div id="tab-analytics" class="tab-content" style="display:none;">
+        <div id="stats-cards-container" class="stats-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:20px;"></div>
+        <div id="top-package-container" class="top-package-banner"></div>
+        <div class="analytics-row" style="margin-bottom:24px;">
+          <div class="analytics-col">
+            <h3 class="section-title" style="font-size:18px;color:var(--gold-300,#ae9073);margin-bottom:14px;font-family:var(--font-display,Tajawal,sans-serif);">آخر الحجوزات</h3>
+            <div id="recent-bookings-container"></div>
+          </div>
+        </div>
+        <div class="calendar-section">
+          <h3 class="section-title" style="font-size:18px;color:var(--gold-300,#ae9073);margin-bottom:14px;font-family:var(--font-display,Tajawal,sans-serif);">📅 تقويم الرحلات والحجوزات</h3>
+          <div id="calendar-container"></div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -652,7 +672,8 @@
   </div>
 
   <!-- Global Scripts — xlsx lazy-loaded from script.js on demand -->
-  <script src="assets/js/script.js?v=haoues-14.0" defer></script>
+  <script src="assets/js/script.js?v=haoues-16.0" defer></script>
+  <script src="assets/js/analytics.js?v=haoues-16.0" defer></script>
 </body>
 
 </html>
