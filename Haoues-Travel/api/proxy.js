@@ -1,4 +1,4 @@
-const GOOGLE_SHEETS_URL = process.env.GOOGLE_SHEETS_URL || "https://script.google.com/macros/s/AKfycbzNWBMwPbL5yv_LW5qvJIWnvZ11K6lN55ySFD94g554zl3sXg5N53STWJtuTCl8Modg/exec";
+const GOOGLE_SHEETS_URL = process.env.GOOGLE_SHEETS_URL || "https://script.google.com/macros/s/AKfycbym-sESHCavtKpQSHyLhlDbZlmrf8khTFxJuMOYliF6-aKhTbZpH3uzYGAFvy9QfrOK/exec";
 const ADMIN_KEY = process.env.ADMIN_KEY || "admin2025H";
 
 // Allowed origins for CORS. Override via env var as a comma-separated list.
