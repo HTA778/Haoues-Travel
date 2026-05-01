@@ -10,6 +10,17 @@ const rateLimit = new Map();
 const LIMIT_WINDOW = 10000; // 10 seconds
 const MAX_REQUESTS = 15;
 
+// Allowed actions whitelist
+const ALLOWED_ACTIONS = [
+  'book', 'checkDuplicate', 'trackVisit', 'trackRegistration',
+  'getAnalytics', 'getCalendarEvents', 'getPackages', 'getRegistrations',
+  'updateStatus', 'deleteBooking', 'addPackage', 'editPackage',
+  'deletePackage', 'updatePackageStatus', 'uploadImage'
+];
+
+// Max payload size (50KB)
+const MAX_PAYLOAD_SIZE = 50 * 1024;
+
 export default async function handler(req, res) {
   // 0. Fail-closed if server-side config is missing. Never leak a default secret.
   if (!GOOGLE_SHEETS_URL || !ADMIN_KEY) {
@@ -78,6 +89,17 @@ export default async function handler(req, res) {
       
       if (typeof payload !== 'object') {
         return res.status(400).json({ success: false, error: "بيانات الطلب غير صالحة." });
+      }
+
+      // Validate action is in whitelist
+      if (payload.action && !ALLOWED_ACTIONS.includes(payload.action)) {
+        return res.status(400).json({ success: false, error: "إجراء غير مسموح به." });
+      }
+
+      // Payload size check
+      const payloadStr = JSON.stringify(payload);
+      if (payloadStr.length > MAX_PAYLOAD_SIZE) {
+        return res.status(413).json({ success: false, error: "حجم البيانات كبير جداً." });
       }
 
       // 3. Security Hardening: Inject ADMIN_KEY (resilient check)
