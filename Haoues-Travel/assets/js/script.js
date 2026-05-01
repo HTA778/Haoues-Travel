@@ -1552,7 +1552,7 @@ window.exportData = (format) => {
     showToast("⚠️ لا توجد بيانات للتصدير مع الفلتر الحالي.", 'error');
     return;
   }
-  // FIX: Use normalized English keys for export mapping
+  // Export: map booking data to clean Arabic columns for Excel/PDF/Word
   const data = filtered.map(b => {
     const p = getBookingPrice(b);
     const ts = b.timestamp ? new Date(b.timestamp) : null;
