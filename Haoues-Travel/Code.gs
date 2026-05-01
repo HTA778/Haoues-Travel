@@ -71,6 +71,14 @@ function doGet(e) {
           settings: getSettings()
         });
 
+      case "getAnalytics":
+        if (!isAdminKey(key)) throw new Error("غير مصرّح لك بالوصول.");
+        return respond(getAnalyticsData());
+
+      case "getCalendarEvents":
+        if (!isAdminKey(key)) throw new Error("غير مصرّح لك بالوصول.");
+        return respond(getCalendarEvents());
+
       default: return respond({ error: "إجراء غير صالح" }, 400);
     }
   } catch (err) {
@@ -90,6 +98,17 @@ function doPost(e) {
     switch(action) {
       case "book": return respond(processBooking(payload.data));
       case "checkDuplicate": return respond(checkBookingDuplicate(payload.data));
+
+      case "trackVisit": return respond(trackVisit("pageload"));
+      case "trackRegistration": return respond(trackVisit("registration"));
+
+      case "getAnalytics":
+        if (!isAdminKey(key)) throw new Error("غير مصرّح لك بالوصول.");
+        return respond(getAnalyticsData());
+
+      case "getCalendarEvents":
+        if (!isAdminKey(key)) throw new Error("غير مصرّح لك بالوصول.");
+        return respond(getCalendarEvents());
 
       case "uploadImage":
         if (!isAdminKey(key)) throw new Error("غير مصرّح لك بالوصول.");
@@ -700,6 +719,260 @@ row('📅 التاريخ', dateStr) +
     htmlBody: body, 
     name: 'حواس للسياحة والسفر — HTV' 
   });
+}
+
+/* ══════════════════════════════════════════
+   ANALYTICS — Tracking & Statistics
+   ══════════════════════════════════════════ */
+
+function getOrCreateAnalyticsSheet() {
+  var ss = SpreadsheetApp.openById(IDS.BOOKINGS);
+  var sheet = ss.getSheetByName("Analytics");
+  if (!sheet) {
+    sheet = ss.insertSheet("Analytics");
+    sheet.appendRow(["Date", "PageLoads", "UniqueVisitors", "Registrations", "Confirmations"]);
+    sheet.getRange(1, 1, 1, 5)
+      .setBackground("#040810")
+      .setFontColor("#ae9073")
+      .setFontWeight("bold");
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function trackVisit(type) {
+  try {
+    var sheet = getOrCreateAnalyticsSheet();
+    var today = Utilities.formatDate(new Date(), "GMT+1", "dd/MM/yyyy");
+    var data = sheet.getDataRange().getValues();
+    var foundRow = -1;
+
+    for (var i = 1; i < data.length; i++) {
+      var cellDate = String(data[i][0] || "").trim();
+      if (cellDate === today) { foundRow = i + 1; break; }
+    }
+
+    if (foundRow === -1) {
+      sheet.appendRow([today, 0, 0, 0, 0]);
+      foundRow = sheet.getLastRow();
+    }
+
+    if (type === "pageload") {
+      var current = parseInt(sheet.getRange(foundRow, 2).getValue()) || 0;
+      sheet.getRange(foundRow, 2).setValue(current + 1);
+    } else if (type === "registration") {
+      var current = parseInt(sheet.getRange(foundRow, 4).getValue()) || 0;
+      sheet.getRange(foundRow, 4).setValue(current + 1);
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+function parseDateDDMMYYYY(str) {
+  var s = String(str || "").trim();
+  // Try DD/MM/YYYY
+  var parts = s.split("/");
+  if (parts.length === 3) {
+    var d = parseInt(parts[0], 10);
+    var m = parseInt(parts[1], 10) - 1;
+    var y = parseInt(parts[2], 10);
+    if (y > 0 && m >= 0 && m <= 11 && d > 0 && d <= 31) return new Date(y, m, d);
+  }
+  // Try as Date object or ISO string
+  var dt = new Date(s);
+  if (!isNaN(dt.getTime())) return dt;
+  return null;
+}
+
+function toYMD(date) {
+  if (!date || isNaN(date.getTime())) return "";
+  var y = date.getFullYear();
+  var m = String(date.getMonth() + 1).padStart(2, "0");
+  var d = String(date.getDate()).padStart(2, "0");
+  return y + "-" + m + "-" + d;
+}
+
+function getAnalyticsData() {
+  try {
+    var analyticsSheet = getOrCreateAnalyticsSheet();
+    var analyticsData = analyticsSheet.getDataRange().getValues();
+
+    var totalVisitors = 0;
+    var totalRegistrations = 0;
+    for (var i = 1; i < analyticsData.length; i++) {
+      totalVisitors += parseInt(analyticsData[i][1]) || 0;
+      totalRegistrations += parseInt(analyticsData[i][3]) || 0;
+    }
+
+    var bookingsSheet = getSafeSheet("BOOKINGS", "الحجوزات");
+    var bookings = bookingsSheet.getDataRange().getValues();
+
+    var offersSheet = getSafeSheet("OFFERS", "العروض");
+    var offers = offersSheet.getDataRange().getValues();
+
+    // Build price lookup by package name
+    var priceByPackage = {};
+    for (var i = 1; i < offers.length; i++) {
+      var pName = String(offers[i][OC.NAME] || "").trim();
+      var pPrice = parseFloat(offers[i][OC.PRICE]) || 0;
+      if (pName) priceByPackage[pName] = pPrice;
+    }
+
+    var totalConfirmed = 0;
+    var now = new Date();
+    var thisMonth = now.getMonth();
+    var thisYear = now.getFullYear();
+    var thisMonthBookings = 0;
+    var thisMonthRevenue = 0;
+    var packageCount = {};
+    var recentBookings = [];
+
+    for (var i = 1; i < bookings.length; i++) {
+      var row = bookings[i];
+      var status = String(row[7] || "").trim();
+
+      if (status === "CONFIRMED" || status === "تم التأكيد" || status === "PAID" || status === "تم الدفع") {
+        totalConfirmed++;
+      }
+
+      var ts = row[0];
+      var bookingDate = (ts instanceof Date) ? ts : parseDateDDMMYYYY(ts);
+      if (bookingDate && bookingDate.getMonth() === thisMonth && bookingDate.getFullYear() === thisYear) {
+        thisMonthBookings++;
+        var pkgName = String(row[4] || "").trim();
+        var pax = parseInt(row[5]) || 1;
+        var storedPrice = parseFloat(row[8]) || 0;
+        var price = storedPrice > 0 ? storedPrice : (priceByPackage[pkgName] || 0);
+        thisMonthRevenue += price * pax;
+      }
+
+      var bPkgName = String(row[4] || "").trim();
+      if (bPkgName) packageCount[bPkgName] = (packageCount[bPkgName] || 0) + 1;
+
+      recentBookings.push({
+        name: String(row[1] || "") + " " + String(row[2] || ""),
+        phone: String(row[3] || ""),
+        package: bPkgName,
+        status: status,
+        date: bookingDate ? toYMD(bookingDate) : ""
+      });
+    }
+
+    recentBookings = recentBookings.slice(-5).reverse();
+
+    var topPackage = "";
+    var topCount = 0;
+    for (var pkg in packageCount) {
+      if (packageCount[pkg] > topCount) { topCount = packageCount[pkg]; topPackage = pkg; }
+    }
+
+    var totalPackages = 0;
+    for (var i = 1; i < offers.length; i++) {
+      var pub = offers[i][OC.PUBLISHED];
+      if (pub === true || pub === "TRUE" || String(pub).toLowerCase() === "true") totalPackages++;
+    }
+
+    return {
+      totalVisitors: totalVisitors,
+      totalRegistrations: totalRegistrations,
+      totalConfirmed: totalConfirmed,
+      totalPackages: totalPackages,
+      thisMonthBookings: thisMonthBookings,
+      thisMonthRevenue: thisMonthRevenue,
+      topPackage: topPackage,
+      recentBookings: recentBookings,
+      calendarEvents: []
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+function getCalendarEvents() {
+  try {
+    var offersSheet = getSafeSheet("OFFERS", "العروض");
+    var offers = offersSheet.getDataRange().getValues();
+    var bookingsSheet = getSafeSheet("BOOKINGS", "الحجوزات");
+    var bookings = bookingsSheet.getDataRange().getValues();
+
+    var events = [];
+
+    // Package departure/return as travel events
+    var pkgDateMap = {};
+    for (var i = 1; i < offers.length; i++) {
+      var r = offers[i];
+      var pkgId = String(r[OC.ID] || "");
+      var pkgName = String(r[OC.NAME] || "").trim();
+      var travelStart = r[OC.TRAVEL_START] || r[OC.START];
+      var travelEnd = r[OC.TRAVEL_END] || r[OC.END];
+
+      var startDate = (travelStart instanceof Date) ? travelStart : parseDateDDMMYYYY(travelStart);
+      var endDate = (travelEnd instanceof Date) ? travelEnd : parseDateDDMMYYYY(travelEnd);
+
+      var startStr = toYMD(startDate);
+      var endStr = toYMD(endDate);
+      pkgDateMap[pkgName] = startStr;
+
+      if (startStr) {
+        events.push({
+          id: pkgId,
+          title: pkgName,
+          start: startStr,
+          end: endStr || startStr,
+          type: "package",
+          hotel: String(r[OC.HOTEL] || ""),
+          seatsTotal: parseInt(r[OC.SEATS]) || 0,
+          seatsTaken: parseInt(r[OC.BOOKED]) || 0,
+          color: "#2563eb"
+        });
+      }
+    }
+
+    // Booking events
+    for (var i = 1; i < bookings.length; i++) {
+      var row = bookings[i];
+      var bId = "B" + (i + 1);
+      var clientName = String(row[1] || "") + " " + String(row[2] || "");
+      var pkgName = String(row[4] || "").trim();
+      var status = String(row[7] || "").trim().toUpperCase();
+
+      var statusLabel = "pending";
+      var color = "#f59e0b";
+      if (status === "CONFIRMED" || status === "تم التأكيد") { statusLabel = "confirmed"; color = "#10b981"; }
+      else if (status === "PAID" || status === "تم الدفع") { statusLabel = "paid"; color = "#8b5cf6"; }
+
+      var bookingStart = pkgDateMap[pkgName] || "";
+      if (!bookingStart) {
+        var ts = row[0];
+        var dt = (ts instanceof Date) ? ts : parseDateDDMMYYYY(ts);
+        bookingStart = toYMD(dt);
+      }
+
+      if (bookingStart) {
+        events.push({
+          id: bId,
+          title: clientName.trim() + " — " + pkgName,
+          start: bookingStart,
+          type: "booking",
+          status: statusLabel,
+          phone: String(row[3] || ""),
+          persons: parseInt(row[5]) || 1,
+          color: color
+        });
+      }
+    }
+
+    events.sort(function(a, b) {
+      return (a.start || "").localeCompare(b.start || "");
+    });
+
+    return events;
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
 
 /* ══════════════════════════════════════════

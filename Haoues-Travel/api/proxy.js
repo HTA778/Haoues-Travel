@@ -85,7 +85,7 @@ export default async function handler(req, res) {
       if (providedPass === ADMIN_KEY) {
         payload.key = ADMIN_KEY; 
         delete payload.pass;
-      } else if (payload.action !== 'book' && payload.action !== 'checkDuplicate') {
+      } else if (payload.action !== 'book' && payload.action !== 'checkDuplicate' && payload.action !== 'trackVisit' && payload.action !== 'trackRegistration') {
         return res.status(401).json({ success: false, error: "كلمة المرور غير صحيحة أو انتهت الجلسة. يرجى تسجيل الدخول مجدداً." });
       }
 
